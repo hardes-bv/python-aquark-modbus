@@ -1,0 +1,26 @@
+# Local interpreter pin; CI selects the Python version via its matrix
+.python-version
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# uv / virtual environments
+.venv/
+
+# Build artifacts
+build/
+dist/
+
+# Test and tool caches
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+
+# IDE
+.idea/

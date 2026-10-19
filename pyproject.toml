@@ -1,0 +1,106 @@
+[project]
+name = "aquark-modbus"
+version = "0.0.0"
+description = "Manage chlorinator devices from Aquark"
+license = "Apache-2.0"
+license-files = ["LICEN[CS]E*"]
+readme = "README.md"
+requires-python = ">=3.12"
+keywords = [
+    "aquark",
+    "modbus",
+    "inverter",
+    "heat pump",
+    "home-assistant"
+]
+authors = [
+    { name = "Ringo De Smet", email = "ringo@de-smet.name" }
+]
+maintainers = [
+    { name = "Ringo De Smet", email = "ringo@de-smet.name" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Home Automation",
+]
+dependencies = [
+    "modbus-connection>=4.12.5",
+]
+
+[project.urls]
+homepage = "https://github.com/hardes-bv/python-aquark-modbus"
+repository = "https://github.com/hardes-bv/python-aquark-modbus"
+documentation = "https://github.com/hardes-bv/python-aquark-modbus"
+"Bug Tracker" = "https://github.com/hardes-bv/python-aquark-modbus/issues"
+Changelog = "https://github.com/hardes-bv/python-aquark-modbus/releases"
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "aquark_modbus"
+module-root = "src"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.11",
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=5",
+    "ruff>=0.6",
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = [
+    "--import-mode=importlib",
+    "--strict-config",
+    "--strict-markers",
+    "--cov=aquark_modbus",
+    "--cov-report=term-missing",
+    "--cov-fail-under=100",
+]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+xfail_strict = true
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+branch = true
+source = ["aquark_modbus"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "@overload",
+    "raise NotImplementedError",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "SIM",    # flake8-simplify
+    "ASYNC",  # flake8-async
+    "RUF",    # ruff-specific rules
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["aquark_modbus"]
+
+[tool.ruff.format]
+docstring-code-format = true
