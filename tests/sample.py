@@ -15,6 +15,7 @@ async def test_live():
 
     await chlorinator.async_ensure_setup()
     print("Chlorinator setup succeeded.")
+    print(f"Device type: {chlorinator.model.device_type}")
     print(f"Model version: {chlorinator.model.version}")
     print(
         f"Major: {chlorinator.model.version.major}, "
