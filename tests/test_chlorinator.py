@@ -7,6 +7,7 @@ from semver import Version
 from aquark_modbus.chlorinator import Chlorinator
 from aquark_modbus.const import DeviceType, WaterQuality
 from aquark_modbus.readings import Readings
+from aquark_modbus.status import Status
 
 
 @pytest.fixture
@@ -75,13 +76,30 @@ async def test_chlorinator_update_cycle(mock_unit: MockModbusConnection) -> None
     unit.input[13] = 2
     unit.input[14] = 0x0103  # 259 -> minor 1, patch 3
     unit.input[15] = 1
+    unit.discrete[0] = False
+    unit.discrete[1] = False
+    unit.discrete[2] = True
+    unit.discrete[3] = True
+    unit.discrete[4] = False
+    unit.discrete[5] = True
+    unit.discrete[6] = False
+    unit.discrete[7] = True
+    unit.discrete[8] = False
+    unit.discrete[9] = True
+    unit.discrete[48] = True
+    unit.discrete[49] = False
+    unit.discrete[50] = True
+    unit.discrete[51] = False
+    unit.discrete[52] = True
 
     chlorinator = Chlorinator(unit)
     assert isinstance(chlorinator.readings, Readings)
+    assert isinstance(chlorinator.status, Status)
     await chlorinator.async_ensure_setup()
 
     readings_report = await chlorinator.async_update_readings()
     assert "readings" in readings_report.updated
+    assert "status" in readings_report.updated
     assert readings_report.complete
     assert chlorinator.readings.orp == -166
     assert chlorinator.readings.ph == 7.2
@@ -96,6 +114,21 @@ async def test_chlorinator_update_cycle(mock_unit: MockModbusConnection) -> None
     assert chlorinator.readings.sv == 1024
     assert chlorinator.readings.electrolytic_current == 5.0
     assert chlorinator.readings.electrolytic_voltage == 12.0
+    assert chlorinator.status.power_fault is False
+    assert chlorinator.status.ph_regulation_fault is False
+    assert chlorinator.status.orp_regulation_fault is True
+    assert chlorinator.status.controller_over_temperature_protection is True
+    assert chlorinator.status.electrolytic_cell_low_temperature_protection is False
+    assert chlorinator.status.wifi_connection_failure is True
+    assert chlorinator.status.ph_sensor_data_failed_to_read is False
+    assert chlorinator.status.orp_sensor_data_failed_to_read is True
+    assert chlorinator.status.power_module_data_failed_to_read is False
+    assert chlorinator.status.external_rs485_communication_failure is True
+    assert chlorinator.status.calibration_required is True
+    assert chlorinator.status.probes_need_replacement is False
+    assert chlorinator.status.flow_switch is True
+    assert chlorinator.status.need_to_add_acid is False
+    assert chlorinator.status.need_to_add_salt is True
     assert chlorinator.model.version == Version(2, 1, 3)
     assert chlorinator.model.device_type is DeviceType.INVER_CLEAR
 
@@ -105,6 +138,7 @@ async def test_chlorinator_update_cycle(mock_unit: MockModbusConnection) -> None
 
     full_report = await chlorinator.async_update()
     assert "readings" in full_report.updated
+    assert "status" in full_report.updated
     assert full_report.complete
 
 
@@ -568,6 +602,342 @@ async def test_chlorinator_reads_electrolytic_voltage_values(
     assert chlorinator.readings.electrolytic_voltage == expected_voltage
 
 
+@pytest.mark.parametrize(
+    "raw_value",
+    [True, False],
+)
+async def test_chlorinator_reads_power_fault_values(
+    mock_unit: MockModbusConnection,
+    raw_value: bool,
+) -> None:
+    """Discrete input 0 decodes into power fault boolean flag."""
+    unit = mock_unit.for_unit(8)
+    unit.discrete[0] = raw_value
+    unit.discrete[1] = False
+    unit.discrete[2] = False
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.status.power_fault is raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [True, False],
+)
+async def test_chlorinator_reads_ph_regulation_fault_values(
+    mock_unit: MockModbusConnection,
+    raw_value: bool,
+) -> None:
+    """Discrete input 1 decodes into pH regulation fault boolean flag."""
+    unit = mock_unit.for_unit(8)
+    unit.discrete[0] = False
+    unit.discrete[1] = raw_value
+    unit.discrete[2] = False
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.status.ph_regulation_fault is raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [True, False],
+)
+async def test_chlorinator_reads_orp_regulation_fault_values(
+    mock_unit: MockModbusConnection,
+    raw_value: bool,
+) -> None:
+    """Discrete input 2 decodes into ORP regulation fault boolean flag."""
+    unit = mock_unit.for_unit(8)
+    unit.discrete[0] = False
+    unit.discrete[1] = False
+    unit.discrete[2] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.status.orp_regulation_fault is raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [True, False],
+)
+async def test_chlorinator_reads_controller_over_temperature_protection_values(
+    mock_unit: MockModbusConnection,
+    raw_value: bool,
+) -> None:
+    """Discrete input 3 decodes into controller over-temperature protection flag."""
+    unit = mock_unit.for_unit(8)
+    unit.discrete[3] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.status.controller_over_temperature_protection is raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [True, False],
+)
+async def test_chlorinator_reads_electrolytic_cell_low_temperature_protection_values(
+    mock_unit: MockModbusConnection,
+    raw_value: bool,
+) -> None:
+    """Discrete input 4 decodes into cell low-temperature protection flag."""
+    unit = mock_unit.for_unit(8)
+    unit.discrete[4] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.status.electrolytic_cell_low_temperature_protection is raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [True, False],
+)
+async def test_chlorinator_reads_wifi_connection_failure_values(
+    mock_unit: MockModbusConnection,
+    raw_value: bool,
+) -> None:
+    """Discrete input 5 decodes into Wi-Fi connection failure boolean flag."""
+    unit = mock_unit.for_unit(8)
+    unit.discrete[5] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.status.wifi_connection_failure is raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [True, False],
+)
+async def test_chlorinator_reads_ph_sensor_data_failed_to_read_values(
+    mock_unit: MockModbusConnection,
+    raw_value: bool,
+) -> None:
+    """Discrete input 6 decodes into pH sensor data read failure flag."""
+    unit = mock_unit.for_unit(8)
+    unit.discrete[6] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.status.ph_sensor_data_failed_to_read is raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [True, False],
+)
+async def test_chlorinator_reads_orp_sensor_data_failed_to_read_values(
+    mock_unit: MockModbusConnection,
+    raw_value: bool,
+) -> None:
+    """Discrete input 7 decodes into ORP sensor data read failure flag."""
+    unit = mock_unit.for_unit(8)
+    unit.discrete[7] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.status.orp_sensor_data_failed_to_read is raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [True, False],
+)
+async def test_chlorinator_reads_power_module_data_failed_to_read_values(
+    mock_unit: MockModbusConnection,
+    raw_value: bool,
+) -> None:
+    """Discrete input 8 decodes into power module data read failure flag."""
+    unit = mock_unit.for_unit(8)
+    unit.discrete[8] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.status.power_module_data_failed_to_read is raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [True, False],
+)
+async def test_chlorinator_reads_external_rs485_communication_failure_values(
+    mock_unit: MockModbusConnection,
+    raw_value: bool,
+) -> None:
+    """Discrete input 9 decodes into external RS485 communication failure flag."""
+    unit = mock_unit.for_unit(8)
+    unit.discrete[9] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.status.external_rs485_communication_failure is raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [True, False],
+)
+async def test_chlorinator_reads_calibration_required_values(
+    mock_unit: MockModbusConnection,
+    raw_value: bool,
+) -> None:
+    """Discrete input 48 decodes into calibration required boolean flag."""
+    unit = mock_unit.for_unit(8)
+    unit.discrete[48] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.status.calibration_required is raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [True, False],
+)
+async def test_chlorinator_reads_probes_need_replacement_values(
+    mock_unit: MockModbusConnection,
+    raw_value: bool,
+) -> None:
+    """Discrete input 49 decodes into probes need replacement boolean flag."""
+    unit = mock_unit.for_unit(8)
+    unit.discrete[49] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.status.probes_need_replacement is raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [True, False],
+)
+async def test_chlorinator_reads_flow_switch_values(
+    mock_unit: MockModbusConnection,
+    raw_value: bool,
+) -> None:
+    """Discrete input 50 decodes into flow switch boolean flag."""
+    unit = mock_unit.for_unit(8)
+    unit.discrete[50] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.status.flow_switch is raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [True, False],
+)
+async def test_chlorinator_reads_need_to_add_acid_values(
+    mock_unit: MockModbusConnection,
+    raw_value: bool,
+) -> None:
+    """Discrete input 51 decodes into need to add acid boolean flag."""
+    unit = mock_unit.for_unit(8)
+    unit.discrete[51] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.status.need_to_add_acid is raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [True, False],
+)
+async def test_chlorinator_reads_need_to_add_salt_values(
+    mock_unit: MockModbusConnection,
+    raw_value: bool,
+) -> None:
+    """Discrete input 52 decodes into need to add salt boolean flag."""
+    unit = mock_unit.for_unit(8)
+    unit.discrete[52] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.status.need_to_add_salt is raw_value
+
+
 async def test_chlorinator_read_raw(mock_unit: MockModbusConnection) -> None:
     """Raw register reads return undecoded register contents for diagnostics."""
     unit = mock_unit.for_unit(8)
@@ -587,6 +957,21 @@ async def test_chlorinator_read_raw(mock_unit: MockModbusConnection) -> None:
     unit.input[13] = 1
     unit.input[14] = 513
     unit.input[15] = 6
+    unit.discrete[0] = False
+    unit.discrete[1] = True
+    unit.discrete[2] = False
+    unit.discrete[3] = True
+    unit.discrete[4] = False
+    unit.discrete[5] = True
+    unit.discrete[6] = False
+    unit.discrete[7] = True
+    unit.discrete[8] = False
+    unit.discrete[9] = True
+    unit.discrete[48] = False
+    unit.discrete[49] = True
+    unit.discrete[50] = False
+    unit.discrete[51] = True
+    unit.discrete[52] = False
 
     chlorinator = Chlorinator(unit)
     await chlorinator.async_ensure_setup()
@@ -608,3 +993,18 @@ async def test_chlorinator_read_raw(mock_unit: MockModbusConnection) -> None:
     assert raw["input"][13] == 1
     assert raw["input"][14] == 513
     assert raw["input"][15] == 6
+    assert raw["discrete"][0] is False
+    assert raw["discrete"][1] is True
+    assert raw["discrete"][2] is False
+    assert raw["discrete"][3] is True
+    assert raw["discrete"][4] is False
+    assert raw["discrete"][5] is True
+    assert raw["discrete"][6] is False
+    assert raw["discrete"][7] is True
+    assert raw["discrete"][8] is False
+    assert raw["discrete"][9] is True
+    assert raw["discrete"][48] is False
+    assert raw["discrete"][49] is True
+    assert raw["discrete"][50] is False
+    assert raw["discrete"][51] is True
+    assert raw["discrete"][52] is False

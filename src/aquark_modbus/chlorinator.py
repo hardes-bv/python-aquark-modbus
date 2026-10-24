@@ -14,11 +14,13 @@ from modbus_connection.model import (
 
 from .model import Model
 from .readings import Readings
+from .status import Status
 
 # Attribute names of the sub-systems each update method reads.
 READINGS = (
     "model",
     "readings",
+    "status",
 )
 SETTINGS: tuple[str, ...] = ()
 ALL = (*READINGS, *SETTINGS)
@@ -33,6 +35,7 @@ class Chlorinator(Device):
         # Sub-systems, each a Component. Repeated ones take an index.
         self.model = Model(unit)
         self.readings = Readings(unit)
+        self.status = Status(unit)
 
     async def _async_setup(self) -> None:
         """Read what never changes, and settle which sub-systems this model has."""
