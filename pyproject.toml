@@ -9,8 +9,7 @@ requires-python = ">=3.12"
 keywords = [
     "aquark",
     "modbus",
-    "inverter",
-    "heat pump",
+    "chlorinator",
     "home-assistant"
 ]
 authors = [
