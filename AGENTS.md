@@ -23,9 +23,10 @@ The consumer owns the connection: it hands the library a `ModbusUnit`
 |----------------------|----------------------------------------------------|
 | `src/aquark_modbus/` | The package                                        |
 | `  aquark.py`        | The `Aquark` client: probe, update, detection      |
-| `  components.py`    | Register field declarations per block, and writes  |
 | `  const.py`         | Addresses and enums                                |
 | `  exceptions.py`    | `AquarkError` and `AquarkConnectionError`          |
+| `  model.py`         | Register field declarations per block, and writes  |
+| `  readings.py`      | Telemetry readings component                       |
 | `tests/`             | pytest suite; each test has a one-line docstring   |
 | `examples/`          | Runnable examples, exercised by `test_examples.py` |
 

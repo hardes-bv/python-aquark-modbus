@@ -1,7 +1,7 @@
 [project]
 name = "aquark-modbus"
 version = "0.0.0"
-description = "Manage chlorinator devices from Aquark"
+description = "A typed Modbus device model for chlorinator devices from Aquark"
 license = "Apache-2.0"
 license-files = ["LICEN[CS]E*"]
 readme = "README.md"
@@ -25,6 +25,7 @@ classifiers = [
 ]
 dependencies = [
     "modbus-connection>=4.12.5",
+    "semver>=3.1.0",
 ]
 
 [project.urls]
@@ -44,6 +45,7 @@ module-root = "src"
 
 [dependency-groups]
 dev = [
+    "modbus-connection[tmodbus]>=4.12.5",
     "mypy>=1.11",
     "pytest>=8",
     "pytest-asyncio>=0.24",
