@@ -6,6 +6,7 @@ from semver import Version
 
 from aquark_modbus.chlorinator import Chlorinator
 from aquark_modbus.const import DeviceType
+from aquark_modbus.readings import Readings
 
 
 @pytest.fixture
@@ -58,16 +59,19 @@ async def test_chlorinator_reads_known_device_types(
 async def test_chlorinator_update_cycle(mock_unit: MockModbusConnection) -> None:
     """Updating readings and settings refreshes sub-systems."""
     unit = mock_unit.for_unit(8)
+    unit.input[0] = 65370  # -166 mV
     unit.input[13] = 2
     unit.input[14] = 0x0103  # 259 -> minor 1, patch 3
     unit.input[15] = 1
 
     chlorinator = Chlorinator(unit)
+    assert isinstance(chlorinator.readings, Readings)
     await chlorinator.async_ensure_setup()
 
     readings_report = await chlorinator.async_update_readings()
-    assert "model" in readings_report.updated
+    assert "readings" in readings_report.updated
     assert readings_report.complete
+    assert chlorinator.readings.orp == -166
     assert chlorinator.model.version == Version(2, 1, 3)
     assert chlorinator.model.device_type is DeviceType.INVER_CLEAR
 
@@ -76,13 +80,43 @@ async def test_chlorinator_update_cycle(mock_unit: MockModbusConnection) -> None
     assert settings_report.complete
 
     full_report = await chlorinator.async_update()
-    assert "model" in full_report.updated
+    assert "readings" in full_report.updated
     assert full_report.complete
+
+
+@pytest.mark.parametrize(
+    ("raw_value", "expected_orp"),
+    [
+        (0, 0),
+        (650, 650),
+        (2000, 2000),
+        (65370, -166),
+        (63536, -2000),
+    ],
+)
+async def test_chlorinator_reads_orp_values(
+    mock_unit: MockModbusConnection,
+    raw_value: int,
+    expected_orp: int,
+) -> None:
+    """Input register 0 decodes into signed ORP millivolt values."""
+    unit = mock_unit.for_unit(8)
+    unit.input[0] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_readings()
+
+    assert chlorinator.readings.orp == expected_orp
 
 
 async def test_chlorinator_read_raw(mock_unit: MockModbusConnection) -> None:
     """Raw register reads return undecoded register contents for diagnostics."""
     unit = mock_unit.for_unit(8)
+    unit.input[0] = 65370
     unit.input[13] = 1
     unit.input[14] = 513
     unit.input[15] = 6
@@ -91,6 +125,7 @@ async def test_chlorinator_read_raw(mock_unit: MockModbusConnection) -> None:
     await chlorinator.async_ensure_setup()
 
     raw = await chlorinator.async_read_raw()
+    assert raw["input"][0] == 65370
     assert raw["input"][13] == 1
     assert raw["input"][14] == 513
     assert raw["input"][15] == 6

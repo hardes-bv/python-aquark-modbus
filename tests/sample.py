@@ -13,19 +13,18 @@ async def test_live():
     unit = conn.for_unit(8)
     chlorinator = Chlorinator(unit)
 
-    await chlorinator.async_ensure_setup()
+    report = await chlorinator.async_update()
     print("Chlorinator setup succeeded.")
+    print(f"Readings update report: {report}")
+    print("")
+
     print(f"Device type: {chlorinator.model.device_type}")
     print(f"Model version: {chlorinator.model.version}")
-    print(
-        f"Major: {chlorinator.model.version.major}, "
-        f"Minor: {chlorinator.model.version.minor}, "
-        f"Patch: {chlorinator.model.version.patch}"
-    )
+    print("")
 
-    report = await chlorinator.async_update_readings()
-    print("Readings update report:", report)
     print(f"Model version after poll: {chlorinator.model.version}")
+    print("Readings:")
+    print(f"  - ORP: {chlorinator.readings.orp} mV")
 
     await conn.close()
 
