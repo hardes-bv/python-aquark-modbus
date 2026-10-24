@@ -47,6 +47,38 @@ async def test_live():
     print(f"  - Electrolytic Current: {current} A")
     voltage = chlorinator.readings.electrolytic_voltage
     print(f"  - Electrolytic Voltage: {voltage} V")
+    print("")
+
+    print("Status:")
+    print(f"  - Power Fault: {chlorinator.status.power_fault}")
+    print(f"  - pH Regulation Fault: {chlorinator.status.ph_regulation_fault}")
+    print(f"  - ORP Regulation Fault: {chlorinator.status.orp_regulation_fault}")
+    ctrl_overtemp = chlorinator.status.controller_over_temperature_protection
+    print(f"  - Controller Over Temperature Protection: {ctrl_overtemp}")
+    cell_lowtemp = chlorinator.status.electrolytic_cell_low_temperature_protection
+    print(f"  - Electrolytic Cell Low Temperature Protection: {cell_lowtemp}")
+    print(f"  - WiFi Connection Failure: {chlorinator.status.wifi_connection_failure}")
+    print(
+        "  - pH Sensor Data Failed to Read:"
+        f" {chlorinator.status.ph_sensor_data_failed_to_read}"
+    )
+    print(
+        "  - ORP Sensor Data Failed to Read:"
+        f" {chlorinator.status.orp_sensor_data_failed_to_read}"
+    )
+    print(
+        "  - Power Module Data Failed to Read:"
+        f" {chlorinator.status.power_module_data_failed_to_read}"
+    )
+    print(
+        "  - External RS485 Communication Failure:"
+        f" {chlorinator.status.external_rs485_communication_failure}"
+    )
+    print(f"  - Calibration Required: {chlorinator.status.calibration_required}")
+    print(f"  - Probes Need Replacement: {chlorinator.status.probes_need_replacement}")
+    print(f"  - Flow Switch: {chlorinator.status.flow_switch}")
+    print(f"  - Need to Add Acid: {chlorinator.status.need_to_add_acid}")
+    print(f"  - Need to Add Salt: {chlorinator.status.need_to_add_salt}")
 
     await conn.close()
 
