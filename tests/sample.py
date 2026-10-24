@@ -16,7 +16,9 @@ async def test_live():
     await chlorinator.async_ensure_setup()
     print('Chlorinator setup succeeded.')
     print(f'Model version: {chlorinator.model.version}')
-    print(f'Major: {chlorinator.model.version.major}, Minor: {chlorinator.model.version.minor}, Patch: {chlorinator.model.version.patch}')
+    print(f'Major: {chlorinator.model.version.major}, '
+          'Minor: {chlorinator.model.version.minor}, '''
+          'Patch: {chlorinator.model.version.patch}')
 
     report = await chlorinator.async_update_readings()
     print('Readings update report:', report)
