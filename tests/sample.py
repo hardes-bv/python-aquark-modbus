@@ -22,9 +22,31 @@ async def test_live():
     print(f"Model version: {chlorinator.model.version}")
     print("")
 
-    print(f"Model version after poll: {chlorinator.model.version}")
     print("Readings:")
     print(f"  - ORP: {chlorinator.readings.orp} mV")
+    print(f"  - pH: {chlorinator.readings.ph}")
+    ec = chlorinator.readings.electrical_conductivity
+    print(f"  - Electrical Conductivity: {ec} ppm")
+    temp = chlorinator.readings.pool_temperature
+    print(f"  - Pool Temperature: {temp} °C")
+    ctrl_temp = chlorinator.readings.controller_temperature
+    print(f"  - Controller Temperature: {ctrl_temp} °C")
+    chlorine_prod = chlorinator.readings.chlorine_production
+    print(f"  - Chlorine Production: {chlorine_prod} %")
+    water_quality = chlorinator.readings.water_quality
+    print(f"  - Water Quality: {water_quality}")
+    plate_specs = chlorinator.readings.electrolytic_plate_specifications
+    print(f"  - Electrolytic Plate Specifications: {plate_specs} g")
+    sj = chlorinator.readings.sj
+    print(f"  - SJ: {sj} mV")
+    si = chlorinator.readings.si
+    print(f"  - SI: {si}")
+    sv = chlorinator.readings.sv
+    print(f"  - SV: {sv}")
+    current = chlorinator.readings.electrolytic_current
+    print(f"  - Electrolytic Current: {current} A")
+    voltage = chlorinator.readings.electrolytic_voltage
+    print(f"  - Electrolytic Voltage: {voltage} V")
 
     await conn.close()
 

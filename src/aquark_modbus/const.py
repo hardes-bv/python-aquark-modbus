@@ -9,3 +9,11 @@ class DeviceType(IntEnum):
     MR_PURE = 0
     INVER_CLEAR = 1
     MR_PURE_PRO = 6
+
+
+class WaterQuality(IntEnum):
+    """Water quality ratings."""
+
+    POOR = 0
+    GOOD = 1
+    PERFECT = 2

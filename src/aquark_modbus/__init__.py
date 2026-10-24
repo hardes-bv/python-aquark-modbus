@@ -3,7 +3,7 @@
 from importlib.metadata import version
 
 from aquark_modbus.chlorinator import Chlorinator
-from aquark_modbus.const import DeviceType
+from aquark_modbus.const import DeviceType, WaterQuality
 from aquark_modbus.exceptions import AquarkConnectionError, AquarkError
 
 # The release workflow stamps the version into pyproject.toml from the git
@@ -15,5 +15,6 @@ __all__ = [
     "AquarkError",
     "Chlorinator",
     "DeviceType",
+    "WaterQuality",
     "__version__",
 ]
