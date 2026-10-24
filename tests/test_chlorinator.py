@@ -1,12 +1,15 @@
 """Tests for the Chlorinator device model."""
 
+from datetime import time as dt_time
+
 import pytest
 from modbus_connection.mock import MockModbusConnection
 from semver import Version
 
 from aquark_modbus.chlorinator import Chlorinator
-from aquark_modbus.const import DeviceType, WaterQuality
+from aquark_modbus.const import DeviceType, OperatingMode, WaterQuality
 from aquark_modbus.readings import Readings
+from aquark_modbus.settings import Settings
 from aquark_modbus.status import Status
 
 
@@ -91,10 +94,19 @@ async def test_chlorinator_update_cycle(mock_unit: MockModbusConnection) -> None
     unit.discrete[50] = True
     unit.discrete[51] = False
     unit.discrete[52] = True
+    unit.holding[0] = 1
+    unit.holding[1] = 8
+    unit.holding[2] = 700
+    unit.holding[3] = 740
+    unit.holding[4] = 40
+    unit.holding[5] = 1
+    unit.holding[6] = (8 << 8) | 0
+    unit.holding[7] = (18 << 8) | 30
 
     chlorinator = Chlorinator(unit)
     assert isinstance(chlorinator.readings, Readings)
     assert isinstance(chlorinator.status, Status)
+    assert isinstance(chlorinator.settings, Settings)
     await chlorinator.async_ensure_setup()
 
     readings_report = await chlorinator.async_update_readings()
@@ -133,12 +145,21 @@ async def test_chlorinator_update_cycle(mock_unit: MockModbusConnection) -> None
     assert chlorinator.model.device_type is DeviceType.INVER_CLEAR
 
     settings_report = await chlorinator.async_update_settings()
-    assert settings_report.updated == set()
+    assert "settings" in settings_report.updated
     assert settings_report.complete
+    assert chlorinator.settings.operating_mode is OperatingMode.AUTO_MODE
+    assert chlorinator.settings.parallel_address_setting == 8
+    assert chlorinator.settings.ideal_orp_settings == 700
+    assert chlorinator.settings.ideal_ph_setting == 7.4
+    assert chlorinator.settings.pool_volume_settings == 40
+    assert chlorinator.settings.timer_enable == 1
+    assert chlorinator.settings.power_on_time == dt_time(8, 0)
+    assert chlorinator.settings.power_off_time == dt_time(18, 30)
 
     full_report = await chlorinator.async_update()
     assert "readings" in full_report.updated
     assert "status" in full_report.updated
+    assert "settings" in full_report.updated
     assert full_report.complete
 
 
@@ -938,6 +959,203 @@ async def test_chlorinator_reads_need_to_add_salt_values(
     assert chlorinator.status.need_to_add_salt is raw_value
 
 
+@pytest.mark.parametrize(
+    ("raw_value", "expected_mode"),
+    [
+        (0, OperatingMode.SHUTDOWN),
+        (1, OperatingMode.AUTO_MODE),
+        (2, OperatingMode.SHOCK_MODE),
+        (3, OperatingMode.FACTORY_TEST_MODE),
+    ],
+)
+async def test_chlorinator_reads_operating_mode_values(
+    mock_unit: MockModbusConnection,
+    raw_value: int,
+    expected_mode: OperatingMode,
+) -> None:
+    """Holding register 0 decodes into the corresponding OperatingMode enumeration."""
+    unit = mock_unit.for_unit(8)
+    unit.holding[0] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_settings()
+
+    assert chlorinator.settings.operating_mode is expected_mode
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [1, 8, 28],
+)
+async def test_chlorinator_reads_parallel_address_setting_values(
+    mock_unit: MockModbusConnection,
+    raw_value: int,
+) -> None:
+    """Holding register 1 decodes into unsigned parallel address setting."""
+    unit = mock_unit.for_unit(8)
+    unit.holding[1] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_settings()
+
+    assert chlorinator.settings.parallel_address_setting == raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [650, 700, 800],
+)
+async def test_chlorinator_reads_ideal_orp_settings_values(
+    mock_unit: MockModbusConnection,
+    raw_value: int,
+) -> None:
+    """Holding register 2 decodes into unsigned ideal ORP setting in millivolts."""
+    unit = mock_unit.for_unit(8)
+    unit.holding[2] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_settings()
+
+    assert chlorinator.settings.ideal_orp_settings == raw_value
+
+
+@pytest.mark.parametrize(
+    ("raw_value", "expected_ph"),
+    [
+        (720, 7.2),
+        (740, 7.4),
+        (760, 7.6),
+    ],
+)
+async def test_chlorinator_reads_ideal_ph_setting_values(
+    mock_unit: MockModbusConnection,
+    raw_value: int,
+    expected_ph: float,
+) -> None:
+    """Holding register 3 decodes into ideal pH setting divided by 100."""
+    unit = mock_unit.for_unit(8)
+    unit.holding[3] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_settings()
+
+    assert chlorinator.settings.ideal_ph_setting == expected_ph
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [5, 40, 120],
+)
+async def test_chlorinator_reads_pool_volume_settings_values(
+    mock_unit: MockModbusConnection,
+    raw_value: int,
+) -> None:
+    """Holding register 4 decodes into unsigned pool volume setting in cubic meters."""
+    unit = mock_unit.for_unit(8)
+    unit.holding[4] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_settings()
+
+    assert chlorinator.settings.pool_volume_settings == raw_value
+
+
+@pytest.mark.parametrize(
+    "raw_value",
+    [0, 1],
+)
+async def test_chlorinator_reads_timer_enable_values(
+    mock_unit: MockModbusConnection,
+    raw_value: int,
+) -> None:
+    """Holding register 5 decodes into unsigned timer enable setting."""
+    unit = mock_unit.for_unit(8)
+    unit.holding[5] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_settings()
+
+    assert chlorinator.settings.timer_enable == raw_value
+
+
+@pytest.mark.parametrize(
+    ("raw_value", "expected_time"),
+    [
+        (0, dt_time(0, 0)),
+        ((8 << 8) | 30, dt_time(8, 30)),
+        ((23 << 8) | 59, dt_time(23, 59)),
+    ],
+)
+async def test_chlorinator_reads_power_on_time_values(
+    mock_unit: MockModbusConnection,
+    raw_value: int,
+    expected_time: dt_time,
+) -> None:
+    """Holding register 6 decodes into power-on time of day."""
+    unit = mock_unit.for_unit(8)
+    unit.holding[6] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_settings()
+
+    assert chlorinator.settings.power_on_time == expected_time
+
+
+@pytest.mark.parametrize(
+    ("raw_value", "expected_time"),
+    [
+        (0, dt_time(0, 0)),
+        ((18 << 8) | 0, dt_time(18, 0)),
+        ((23 << 8) | 59, dt_time(23, 59)),
+    ],
+)
+async def test_chlorinator_reads_power_off_time_values(
+    mock_unit: MockModbusConnection,
+    raw_value: int,
+    expected_time: dt_time,
+) -> None:
+    """Holding register 7 decodes into power-off time of day."""
+    unit = mock_unit.for_unit(8)
+    unit.holding[7] = raw_value
+    unit.input[13] = 1
+    unit.input[14] = 0x0100
+    unit.input[15] = 0
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_ensure_setup()
+    await chlorinator.async_update_settings()
+
+    assert chlorinator.settings.power_off_time == expected_time
+
+
 async def test_chlorinator_read_raw(mock_unit: MockModbusConnection) -> None:
     """Raw register reads return undecoded register contents for diagnostics."""
     unit = mock_unit.for_unit(8)
@@ -972,6 +1190,14 @@ async def test_chlorinator_read_raw(mock_unit: MockModbusConnection) -> None:
     unit.discrete[50] = False
     unit.discrete[51] = True
     unit.discrete[52] = False
+    unit.holding[0] = 1
+    unit.holding[1] = 8
+    unit.holding[2] = 700
+    unit.holding[3] = 720
+    unit.holding[4] = 40
+    unit.holding[5] = 1
+    unit.holding[6] = (8 << 8) | 0
+    unit.holding[7] = (18 << 8) | 30
 
     chlorinator = Chlorinator(unit)
     await chlorinator.async_ensure_setup()
@@ -1008,3 +1234,11 @@ async def test_chlorinator_read_raw(mock_unit: MockModbusConnection) -> None:
     assert raw["discrete"][50] is False
     assert raw["discrete"][51] is True
     assert raw["discrete"][52] is False
+    assert raw["holding"][0] == 1
+    assert raw["holding"][1] == 8
+    assert raw["holding"][2] == 700
+    assert raw["holding"][3] == 720
+    assert raw["holding"][4] == 40
+    assert raw["holding"][5] == 1
+    assert raw["holding"][6] == (8 << 8) | 0
+    assert raw["holding"][7] == (18 << 8) | 30

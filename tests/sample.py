@@ -79,6 +79,19 @@ async def test_live():
     print(f"  - Flow Switch: {chlorinator.status.flow_switch}")
     print(f"  - Need to Add Acid: {chlorinator.status.need_to_add_acid}")
     print(f"  - Need to Add Salt: {chlorinator.status.need_to_add_salt}")
+    print("")
+
+    print("Settings:")
+    print(f"  - Operating Mode: {chlorinator.settings.operating_mode}")
+    print(
+        f"  - Parallel Address Setting: {chlorinator.settings.parallel_address_setting}"
+    )
+    print(f"  - Ideal ORP Settings: {chlorinator.settings.ideal_orp_settings} mV")
+    print(f"  - Ideal pH Setting: {chlorinator.settings.ideal_ph_setting}")
+    print(f"  - Pool Volume Settings: {chlorinator.settings.pool_volume_settings} m³")
+    print(f"  - Timer Enable: {chlorinator.settings.timer_enable}")
+    print(f"  - Power On Time: {chlorinator.settings.power_on_time}")
+    print(f"  - Power Off Time: {chlorinator.settings.power_off_time}")
 
     await conn.close()
 

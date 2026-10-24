@@ -11,6 +11,15 @@ class DeviceType(IntEnum):
     MR_PURE_PRO = 6
 
 
+class OperatingMode(IntEnum):
+    """Chlorinator operating modes."""
+
+    SHUTDOWN = 0
+    AUTO_MODE = 1
+    SHOCK_MODE = 2
+    FACTORY_TEST_MODE = 3
+
+
 class WaterQuality(IntEnum):
     """Water quality ratings."""
 
