@@ -12,7 +12,7 @@ from modbus_connection.model import (
     UpdateReport,
 )
 
-from .components import Model
+from .model import Model
 
 # Attribute names of the sub-systems each update method reads.
 READINGS = ("model",)
