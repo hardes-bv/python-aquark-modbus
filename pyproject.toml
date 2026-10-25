@@ -23,7 +23,7 @@ classifiers = [
     "Topic :: Home Automation",
 ]
 dependencies = [
-    "modbus-connection>=4.12.5",
+    "modbus-connection>=4.12.4",
     "semver>=3.1.0",
 ]
 
@@ -44,7 +44,7 @@ module-root = "src"
 
 [dependency-groups]
 dev = [
-    "modbus-connection[tmodbus]>=4.12.5",
+    "modbus-connection[tmodbus]>=4.12.4",
     "mypy>=1.11",
     "pytest>=8",
     "pytest-asyncio>=0.24",
