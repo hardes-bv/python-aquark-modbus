@@ -64,7 +64,15 @@ def _translated_errors() -> Generator[None]:
 
 
 class Chlorinator(Device):
-    """A chlorinator reached through a ``ModbusUnit``."""
+    """A chlorinator reached through a ``ModbusUnit``.
+
+    Every error this class raises is a ``ModbusError``, so that is the safe
+    catch-all. Polls (``async_update*``) keep partial failures in the report
+    they return, and raise a ``ModbusError`` subclass when the link dies or
+    the device stays silent before anything answers. The one-time reads
+    (``async_ensure_setup`` and ``async_validate``) translate those failures
+    into the library's own exceptions.
+    """
 
     def __init__(self, unit: ModbusUnit) -> None:
         super().__init__(unit)
@@ -76,19 +84,37 @@ class Chlorinator(Device):
         self.settings = Settings(unit)
 
     async def _async_setup(self) -> None:
-        """Read what never changes, and settle which sub-systems this model has."""
-        await self.model.async_update()  # identity: read once, never polled
+        """Read what never changes, and settle which sub-systems this model has.
+
+        A one-shot identity read, like ``async_validate``: failures surface
+        as the library's own exceptions, and a failed run is retried on the
+        next call.
+        """
+        with _translated_errors():
+            await self.model.async_update()  # identity: read once, never polled
 
     async def async_update_readings(self) -> UpdateReport:
-        """Refresh what the controller measures."""
+        """Refresh what the controller measures.
+
+        Partial failures land in the report; a dead link or total silence
+        raises a ``ModbusError`` subclass.
+        """
         return await self.async_poll(READINGS)
 
     async def async_update_settings(self) -> UpdateReport:
-        """Refresh what the controller has been configured to do."""
+        """Refresh what the controller has been configured to do.
+
+        Partial failures land in the report; a dead link or total silence
+        raises a ``ModbusError`` subclass.
+        """
         return await self.async_poll(SETTINGS)
 
     async def async_update(self) -> UpdateReport:
-        """Refresh all components."""
+        """Refresh all components.
+
+        Partial failures land in the report; a dead link or total silence
+        raises a ``ModbusError`` subclass.
+        """
         report = await self.async_poll(READINGS)
         return await self.async_poll(SETTINGS, report)
 

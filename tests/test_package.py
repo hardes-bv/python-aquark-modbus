@@ -1,9 +1,16 @@
 """Tests for the package surface and its exception hierarchy."""
 
 import pytest
+from modbus_connection import ModbusError
 
 import aquark_modbus
-from aquark_modbus import AquarkConnectionError, AquarkError
+from aquark_modbus import (
+    AquarkConnectionError,
+    AquarkError,
+    AquarkRefusedError,
+    AquarkTimeoutError,
+    NotAnAquarkDeviceError,
+)
 
 
 def test_version_is_a_string() -> None:
@@ -30,3 +37,26 @@ def test_aquark_error_is_an_exception() -> None:
 
     assert isinstance(error, Exception)
     assert str(error) == "bad value"
+
+
+def test_aquark_error_is_a_modbus_error() -> None:
+    """The base error derives from ModbusError, the shared catch-all."""
+    assert issubclass(AquarkError, ModbusError)
+
+
+def test_every_public_exception_is_a_modbus_error() -> None:
+    """Every public exception is catchable with a single except ModbusError."""
+    for error in (
+        AquarkConnectionError,
+        AquarkRefusedError,
+        AquarkTimeoutError,
+        NotAnAquarkDeviceError,
+    ):
+        assert issubclass(error, AquarkError)
+        assert issubclass(error, ModbusError)
+
+
+def test_modbus_error_catches_a_library_exception() -> None:
+    """A catch-all except ModbusError matches the library's own exceptions."""
+    with pytest.raises(ModbusError):
+        raise NotAnAquarkDeviceError("not this board")

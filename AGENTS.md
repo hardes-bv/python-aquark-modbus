@@ -37,7 +37,7 @@ The consumer owns the connection: it hands the library a `ModbusUnit`
 This is a [uv][uv] project.
 
 During iteration, running a single tool directly is fine and faster:
-`poetry run pytest -k ...`, `poetry run ruff check .`, `poetry run ty check src`.
+`uv run pytest -k ...`, `uv run ruff check .`, `uv run ty check src`.
 The fuzz tests run more examples under `HYPOTHESIS_PROFILE=ci`.
 
 ## Conventions
