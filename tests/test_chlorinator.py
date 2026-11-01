@@ -3,11 +3,25 @@
 from datetime import time as dt_time
 
 import pytest
+from modbus_connection import (
+    GatewayTargetError,
+    IllegalDataAddressError,
+    ModbusConnectionError,
+    ModbusError,
+    ModbusTimeoutError,
+)
 from modbus_connection.mock import MockModbusConnection
 from semver import Version
 
 from aquark_modbus.chlorinator import Chlorinator
 from aquark_modbus.const import DeviceType, OperatingMode, WaterQuality
+from aquark_modbus.exceptions import (
+    AquarkConnectionError,
+    AquarkError,
+    AquarkRefusedError,
+    AquarkTimeoutError,
+    NotAnAquarkDeviceError,
+)
 from aquark_modbus.readings import Readings
 from aquark_modbus.settings import Settings
 from aquark_modbus.status import Status
@@ -161,6 +175,149 @@ async def test_chlorinator_update_cycle(mock_unit: MockModbusConnection) -> None
     assert "status" in full_report.updated
     assert "settings" in full_report.updated
     assert full_report.complete
+
+
+async def test_ensure_setup_raises_aquark_connection_error(
+    mock_unit: MockModbusConnection,
+) -> None:
+    """A dead link during the identity read surfaces as AquarkConnectionError."""
+    unit = mock_unit.for_unit(8)
+    unit.fail_requests(ModbusConnectionError("link down"))
+
+    chlorinator = Chlorinator(unit)
+    with pytest.raises(AquarkConnectionError) as exc_info:
+        await chlorinator.async_ensure_setup()
+    assert isinstance(exc_info.value.__cause__, ModbusConnectionError)
+
+
+async def test_ensure_setup_raises_aquark_timeout_error(
+    mock_unit: MockModbusConnection,
+) -> None:
+    """A silent device during the identity read surfaces as AquarkTimeoutError."""
+    unit = mock_unit.for_unit(8)
+    unit.fail_requests(ModbusTimeoutError("no answer"))
+
+    chlorinator = Chlorinator(unit)
+    with pytest.raises(AquarkTimeoutError) as exc_info:
+        await chlorinator.async_ensure_setup()
+    assert isinstance(exc_info.value.__cause__, ModbusTimeoutError)
+
+
+async def test_ensure_setup_raises_timeout_when_silent_behind_gateway(
+    mock_unit: MockModbusConnection,
+) -> None:
+    """A gateway with a silent target surfaces as AquarkTimeoutError."""
+    unit = mock_unit.for_unit(8)
+    unit.fail_requests(GatewayTargetError())
+
+    chlorinator = Chlorinator(unit)
+    with pytest.raises(AquarkTimeoutError):
+        await chlorinator.async_ensure_setup()
+
+
+async def test_ensure_setup_raises_aquark_refused_error(
+    mock_unit: MockModbusConnection,
+) -> None:
+    """A refused identity read surfaces as AquarkRefusedError."""
+    unit = mock_unit.for_unit(8)
+    unit.fail_requests(IllegalDataAddressError())
+
+    chlorinator = Chlorinator(unit)
+    with pytest.raises(AquarkRefusedError):
+        await chlorinator.async_ensure_setup()
+
+
+async def test_ensure_setup_raises_aquark_error_on_bad_decode(
+    mock_unit: MockModbusConnection,
+) -> None:
+    """Undecodable identity data surfaces as the base AquarkError."""
+    unit = mock_unit.for_unit(8)
+    unit.fail_requests(ValueError("not a version"))
+
+    chlorinator = Chlorinator(unit)
+    with pytest.raises(AquarkError) as exc_info:
+        await chlorinator.async_ensure_setup()
+    assert not isinstance(exc_info.value, AquarkConnectionError)
+
+
+async def test_ensure_setup_retries_after_a_failed_run(
+    mock_unit: MockModbusConnection,
+) -> None:
+    """A failed identity read is retried on the next ensure_setup call."""
+    unit = mock_unit.for_unit(8)
+    unit.input[13] = 1
+    unit.input[14] = 0x0201  # 513 -> minor 2, patch 1
+    unit.input[15] = 6
+    unit.fail_requests(ModbusTimeoutError("no answer"))
+
+    chlorinator = Chlorinator(unit)
+    with pytest.raises(AquarkTimeoutError):
+        await chlorinator.async_ensure_setup()
+    unit.fail_requests(None)
+    await chlorinator.async_ensure_setup()
+
+    assert chlorinator.model.version == Version(1, 2, 1)
+    assert chlorinator.model.device_type is DeviceType.MR_PURE_PRO
+
+
+async def test_update_raises_modbus_error_when_link_dies_in_setup(
+    mock_unit: MockModbusConnection,
+) -> None:
+    """A dead link during setup surfaces from async_update as a ModbusError."""
+    unit = mock_unit.for_unit(8)
+    unit.fail_requests(ModbusConnectionError("link down"))
+
+    chlorinator = Chlorinator(unit)
+    with pytest.raises(ModbusError) as exc_info:
+        await chlorinator.async_update()
+    assert isinstance(exc_info.value, AquarkConnectionError)
+
+
+async def test_validate_passes_for_an_answering_board(
+    mock_unit: MockModbusConnection,
+) -> None:
+    """A board that answers its registers validates without raising."""
+    unit = mock_unit.for_unit(8)
+
+    chlorinator = Chlorinator(unit)
+    await chlorinator.async_validate()
+
+
+async def test_validate_raises_not_an_aquark_device_when_refused(
+    mock_unit: MockModbusConnection,
+) -> None:
+    """A board that refuses these registers is reported as not an Aquark."""
+    unit = mock_unit.for_unit(8)
+    unit.fail_requests(IllegalDataAddressError())
+
+    chlorinator = Chlorinator(unit)
+    with pytest.raises(NotAnAquarkDeviceError) as exc_info:
+        await chlorinator.async_validate()
+    assert isinstance(exc_info.value.__cause__, AquarkRefusedError)
+
+
+async def test_validate_raises_timeout_when_nothing_answers(
+    mock_unit: MockModbusConnection,
+) -> None:
+    """Nothing answering behind a live link surfaces as AquarkTimeoutError."""
+    unit = mock_unit.for_unit(8)
+    unit.fail_requests(ModbusTimeoutError("no answer"))
+
+    chlorinator = Chlorinator(unit)
+    with pytest.raises(AquarkTimeoutError):
+        await chlorinator.async_validate()
+
+
+async def test_validate_raises_connection_error_when_link_down(
+    mock_unit: MockModbusConnection,
+) -> None:
+    """A dead link surfaces as AquarkConnectionError."""
+    unit = mock_unit.for_unit(8)
+    unit.fail_requests(ModbusConnectionError("link down"))
+
+    chlorinator = Chlorinator(unit)
+    with pytest.raises(AquarkConnectionError):
+        await chlorinator.async_validate()
 
 
 @pytest.mark.parametrize(

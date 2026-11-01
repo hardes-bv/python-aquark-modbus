@@ -1,8 +1,16 @@
 """Exceptions raised by the Aquark Modbus client."""
 
+from modbus_connection import ModbusError
 
-class AquarkError(Exception):
-    """Base error for the library: a bad value or undecodable data."""
+
+class AquarkError(ModbusError):
+    """Base error for the library: a bad value or undecodable data.
+
+    Every exception this library raises derives from it. It in turn derives
+    from ``modbus_connection.ModbusError``, so ``except ModbusError`` is a
+    safe catch-all: it matches both the raw errors a poll raises and the
+    translated errors ``async_validate`` and ``async_ensure_setup`` raise.
+    """
 
 
 class AquarkConnectionError(AquarkError):
